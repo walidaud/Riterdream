@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, User, BookOpen, Palette, FileText, Save, PenTool, ChevronLeft, Edit, Trash2 } from 'lucide-react';
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 const Riterdream = () => {
   const [currentEmotion, setCurrentEmotion] = useState('hopeful');
   const [showMoodSelector, setShowMoodSelector] = useState(false);
@@ -43,7 +45,7 @@ const Riterdream = () => {
   }, []);
 
   useEffect(() => {
-  fetch('https://riterdream-api.onrender.com/api/stories')
+  fetch(`${API_URL}/api/stories`)
     .then(res => res.json())
     .then(data => {
       if (data.length > 0) setStories(data);
@@ -59,7 +61,7 @@ const Riterdream = () => {
   setStories(updatedStories);
 
   // Save to backend
-  fetch(`https://riterdream-api.onrender.com/api/stories/${newStoryData._id}`, {
+  fetch(`${API_URL}/api/stories/${newStoryData._id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(newStoryData),
@@ -97,7 +99,7 @@ const Riterdream = () => {
     notes: []
   };
 
-  fetch('https://riterdream-api.onrender.com/api/stories', {
+  fetch(`${API_URL}/api/stories`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(newStory)
