@@ -6,18 +6,16 @@ const Riterdream = () => {
   const [showMoodSelector, setShowMoodSelector] = useState(false);
   const [activeTab, setActiveTab] = useState('chapters');
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
-  const [stories, setStories] = useState([
-    {
-      title: 'Untitled Story',
-      characters: [],
-      plotPoints: [],
-      chapters: [],
-      themes: ['hopeful'],
-      notes: []
-    }
-  ]);
+  const [stories, setStories] = useState([]);
 
-  const storyData = stories[selectedStoryIndex];
+  const storyData = stories[selectedStoryIndex] || {
+  title: '',
+  characters: [],
+  plotPoints: [],
+  chapters: [],
+  themes: ['hopeful'],
+  notes: []
+};
 
   const emotions = {
     hopeful: { name: 'Hopeful', colors: 'from-amber-50 to-orange-100', accent: 'bg-amber-400', text: 'text-amber-900', card: 'bg-white/80 border-amber-200', button: 'bg-amber-500 hover:bg-amber-600', font: 'font-sans', animation: 'animate-pulse', shadow: 'shadow-amber-200/50' },
@@ -44,9 +42,32 @@ const Riterdream = () => {
     return () => document.head.removeChild(style);
   }, []);
 
+  useEffect(() => {
+  fetch('https://riterdream-api.onrender.com/api/stories')
+    .then(res => res.json())
+    .then(data => {
+      if (data.length > 0) setStories(data);
+    })
+    .catch(err => console.error('Error loading stories:', err));
+}, []);
+
+
   const updateStories = (newStoryData) => {
-    setStories(prev => prev.map((story, idx) => idx === selectedStoryIndex ? newStoryData : story));
-  };
+  const updatedStories = stories.map((story, idx) =>
+    idx === selectedStoryIndex ? newStoryData : story
+  );
+  setStories(updatedStories);
+
+  // Save to backend
+  fetch(`https://riterdream-api.onrender.com/api/stories/${newStoryData._id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newStoryData),
+  })
+    .then(res => res.json())
+    .then(data => console.log('Story updated:', data))
+    .catch(err => console.error('Error saving story:', err));
+};
 
   const updateField = (section, index, key, value) => {
     const updated = { ...storyData };
@@ -67,16 +88,31 @@ const Riterdream = () => {
   };
 
   const addNewStory = () => {
-    setStories(prev => [...prev, {
-      title: 'New Story',
-      characters: [],
-      plotPoints: [],
-      chapters: [],
-      themes: ['hopeful'],
-      notes: []
-    }]);
-    setSelectedStoryIndex(stories.length);
+  const newStory = {
+    title: 'New Story',
+    characters: [],
+    plotPoints: [],
+    chapters: [],
+    themes: ['hopeful'],
+    notes: []
   };
+
+  fetch('https://riterdream-api.onrender.com/api/stories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newStory)
+  })
+    .then(res => res.json())
+    .then((savedStory) => {
+      setStories(prev => {
+        const newStories = [...prev, savedStory];
+        setSelectedStoryIndex(newStories.length - 1);
+        return newStories;
+      });
+    })
+    .catch(err => console.error('Failed to create new story:', err));
+};
+
 
   const renderTabContent = () => {
     switch (activeTab) {
