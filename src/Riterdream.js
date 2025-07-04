@@ -50,14 +50,20 @@ const Riterdream = () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text })
     });
+
     const data = await res.json();
-    const mapped = mapHuggingFaceEmotion(data.emotion);
+    console.log('Emotion API result:', data); // 👈 SEE THIS IN CONSOLE
+
+    // Change this line depending on the real shape
+    const mapped = mapHuggingFaceEmotion(data.label || data.emotion); // If it's undefined, use `data.label` instead
     return mapped;
+
   } catch (err) {
     console.error('Emotion detection failed', err);
     return 'hopeful';
   }
 };
+
 
 
   useEffect(() => {
@@ -106,27 +112,34 @@ const Riterdream = () => {
 };
 
   const updateField = (section, index, key, value) => {
-  console.log('Detecting emotion for:', value); //remove after
-  clearTimeout(typingTimeout.current);
-  typingTimeout.current = setTimeout(async () => {
-    const updated = { ...storyData };
-    const sectionData = [...(updated[section] || [])];
-    if (key) {
-      sectionData[index] = { ...sectionData[index], [key]: value };
-      if (key !== 'emotion') {
-        const emotion = await detectEmotion(value);
-        sectionData[index].emotion = emotion;
-      }
-    } else {
-      sectionData[index] = value;
-      const combined = Object.values(value).join(' ');
-      const emotion = await detectEmotion(combined);
+  const updated = { ...storyData };
+  const sectionData = [...(updated[section] || [])];
+
+  // Update field immediately
+  if (key) {
+    sectionData[index] = { ...sectionData[index], [key]: value };
+  } else {
+    sectionData[index] = value;
+  }
+  updated[section] = sectionData;
+  updateStories(updated);
+
+  // Debounce AI detection only
+  if (key !== 'emotion') {
+    clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(async () => {
+      const emotionInput = key
+        ? value
+        : Object.values(sectionData[index]).join(' ');
+
+      const emotion = await detectEmotion(emotionInput);
       sectionData[index].emotion = emotion;
-    }
-    updated[section] = sectionData;
-    updateStories(updated);
-  }, 500);
+      updated[section] = sectionData;
+      updateStories(updated);
+    }, 800);
+  }
 };
+
 
 
   const deleteItem = (section, index) => {
