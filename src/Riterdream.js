@@ -30,15 +30,34 @@ const Riterdream = () => {
 
   const theme = emotions[currentEmotion];
 
+  const detectEmotion = async (text) => {
+  try {
+    const res = await fetch(`${API_URL}/api/analyze-emotion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    return data.emotion || 'hopeful';
+  } catch (err) {
+    console.error('Emotion detection failed', err);
+    return 'hopeful';
+  }
+};
+
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
       @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
       @keyframes wiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(1deg); } 75% { transform: rotate(-1deg); } }
       @keyframes slow-fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+      @keyframes glow { 0% { box-shadow: 0 0 5px rgba(0,0,0,0.1); } 50% { box-shadow: 0 0 20px rgba(0,0,0,0.3); } 100% { box-shadow: 0 0 5px rgba(0,0,0,0.1); } }
+
       .animate-shake { animation: shake 0.5s ease-in-out infinite; }
       .animate-wiggle { animation: wiggle 2s ease-in-out infinite; }
       .animate-slow-fade { animation: slow-fade 3s ease-in-out infinite; }
+      .animate-glow { animation: glow 2s ease-in-out infinite; }
+      .transition-all { transition: all 0.3s ease-in-out; }
     `;
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
@@ -71,14 +90,21 @@ const Riterdream = () => {
     .catch(err => console.error('Error saving story:', err));
 };
 
-  const updateField = (section, index, key, value) => {
+  const updateField = async (section, index, key, value) => {
     const updated = { ...storyData };
     const sectionData = [...updated[section]];
     if (key) {
-      sectionData[index] = { ...sectionData[index], [key]: value };
-    } else {
-      sectionData[index] = value;
-    }
+  sectionData[index] = { ...sectionData[index], [key]: value };
+  if (key !== 'emotion') {
+    const emotion = await detectEmotion(value);
+    sectionData[index].emotion = emotion;
+  }
+} else {
+  sectionData[index] = value;
+  const combined = Object.values(value).join(' ');
+  const emotion = await detectEmotion(combined);
+  sectionData[index].emotion = emotion;
+}
     updated[section] = sectionData;
     updateStories(updated);
   };
@@ -119,109 +145,223 @@ const Riterdream = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'chapters':
+  return (
+    <div className="space-y-4 mt-4">
+      {storyData.chapters.map((chapter, index) => {
+        const entryTheme = emotions[chapter.emotion || 'hopeful'];
+
         return (
-          <div className="space-y-4 mt-4">
-            {storyData.chapters.map((chapter, index) => (
-              <div key={index} className={`p-4 border rounded ${theme.card} flex flex-col`}>
-                <input
-                  type="text"
-                  placeholder="Chapter Title"
-                  value={chapter.title || ''}
-                  onChange={(e) => updateField('chapters', index, 'title', e.target.value)}
-                  className="mb-2 bg-transparent outline-none font-semibold"
-                />
-                <textarea
-                  value={chapter.content || ''}
-                  onChange={(e) => updateField('chapters', index, 'content', e.target.value)}
-                  className="bg-transparent outline-none w-full"
-                  placeholder="Chapter content..."
-                />
-                <div className="text-right mt-2">
-                  <Trash2 onClick={() => deleteItem('chapters', index)} className="cursor-pointer inline-block" />
-                </div>
-              </div>
-            ))}
-            <button onClick={() => updateField('chapters', storyData.chapters.length, null, { title: '', content: '' })} className={`${theme.button} text-white px-3 py-1 rounded`}>+ Add Chapter</button>
+          <div key={index} className={`p-4 border rounded ${entryTheme.card} ${entryTheme.shadow} hover:${entryTheme.animation} flex flex-col transition-all`}>
+
+            <input
+              type="text"
+              placeholder="Chapter Title"
+              value={chapter.title || ''}
+              onChange={(e) => updateField('chapters', index, 'title', e.target.value)}
+              className="mb-2 bg-transparent outline-none font-semibold"
+            />
+            <textarea
+              value={chapter.content || ''}
+              onChange={(e) => updateField('chapters', index, 'content', e.target.value)}
+              className="bg-transparent outline-none w-full"
+              placeholder="Chapter content..."
+            />
+
+            {/* Emotion dropdown */}
+            <select
+              value={chapter.emotion || 'hopeful'}
+              onChange={(e) => updateField('chapters', index, 'emotion', e.target.value)}
+              className="mt-2 p-1 rounded bg-white text-sm w-max"
+            >
+              {Object.entries(emotions).map(([key, mood]) => (
+                <option key={key} value={key}>{mood.name}</option>
+              ))}
+            </select>
+
+            <div className="text-right mt-2">
+              <Trash2
+                onClick={() => deleteItem('chapters', index)}
+                className="cursor-pointer inline-block"
+              />
+            </div>
           </div>
         );
+      })}
+
+      <button
+        onClick={() =>
+          updateField('chapters', storyData.chapters.length, null, {
+            title: '',
+            content: '',
+            emotion: 'hopeful'
+          })
+        }
+        className={`${theme.button} text-white px-3 py-1 rounded`}
+      >
+        + Add Chapter
+      </button>
+    </div>
+  );
+
       case 'characters':
+  return (
+    <div className="space-y-4 mt-4">
+      {storyData.characters.map((char, index) => {
+        const entryTheme = emotions[char.emotion || 'hopeful'];
+
         return (
-          <div className="space-y-4 mt-4">
-            {storyData.characters.map((char, index) => (
-              <div key={index} className={`p-4 border rounded ${theme.card} flex flex-col`}>
-                <input
-                  type="text"
-                  placeholder="Character Name"
-                  value={char.name || ''}
-                  onChange={(e) => updateField('characters', index, 'name', e.target.value)}
-                  className="mb-2 bg-transparent outline-none font-semibold"
-                />
-                <textarea
-                  value={char.description || ''}
-                  onChange={(e) => updateField('characters', index, 'description', e.target.value)}
-                  className="bg-transparent outline-none w-full"
-                  placeholder="Character description..."
-                />
-                <div className="text-right mt-2">
-                  <Trash2 onClick={() => deleteItem('characters', index)} className="cursor-pointer inline-block" />
-                </div>
-              </div>
-            ))}
-            <button onClick={() => updateField('characters', storyData.characters.length, null, { name: '', description: '' })} className={`${theme.button} text-white px-3 py-1 rounded`}>+ Add Character</button>
+          <div key={index} className={`p-4 border rounded ${entryTheme.card} ${entryTheme.shadow} hover:${entryTheme.animation} flex flex-col transition-all`}>
+
+            <input
+              type="text"
+              placeholder="Character Name"
+              value={char.name || ''}
+              onChange={(e) => updateField('characters', index, 'name', e.target.value)}
+              className="mb-2 bg-transparent outline-none font-semibold"
+            />
+            <textarea
+              value={char.description || ''}
+              onChange={(e) => updateField('characters', index, 'description', e.target.value)}
+              className="bg-transparent outline-none w-full"
+              placeholder="Character description..."
+            />
+
+            {/* Emotion dropdown */}
+            <select
+              value={char.emotion || 'hopeful'}
+              onChange={(e) => updateField('characters', index, 'emotion', e.target.value)}
+              className="mt-2 p-1 rounded bg-white text-sm w-max"
+            >
+              {Object.entries(emotions).map(([key, mood]) => (
+                <option key={key} value={key}>{mood.name}</option>
+              ))}
+            </select>
+
+            <div className="text-right mt-2">
+              <Trash2 onClick={() => deleteItem('characters', index)} className="cursor-pointer inline-block" />
+            </div>
           </div>
         );
+      })}
+      <button
+        onClick={() => updateField('characters', storyData.characters.length, null, {
+          name: '',
+          description: '',
+          emotion: 'hopeful'
+        })}
+        className={`${theme.button} text-white px-3 py-1 rounded`}
+      >
+        + Add Character
+      </button>
+    </div>
+  );
+
       case 'plot':
+  return (
+    <div className="space-y-4 mt-4">
+      {storyData.plotPoints.map((plot, index) => {
+        const entryTheme = emotions[plot.emotion || 'hopeful'];
+
         return (
-          <div className="space-y-4 mt-4">
-            {storyData.plotPoints.map((plot, index) => (
-              <div key={index} className={`p-4 border rounded ${theme.card} flex flex-col`}>
-                <input
-                  type="text"
-                  placeholder="Plot Title"
-                  value={plot.title || ''}
-                  onChange={(e) => updateField('plotPoints', index, 'title', e.target.value)}
-                  className="mb-2 bg-transparent outline-none font-semibold"
-                />
-                <textarea
-                  value={plot.description || ''}
-                  onChange={(e) => updateField('plotPoints', index, 'description', e.target.value)}
-                  className="bg-transparent outline-none w-full"
-                  placeholder="Plot details..."
-                />
-                <div className="text-right mt-2">
-                  <Trash2 onClick={() => deleteItem('plotPoints', index)} className="cursor-pointer inline-block" />
-                </div>
-              </div>
-            ))}
-            <button onClick={() => updateField('plotPoints', storyData.plotPoints.length, null, { title: '', description: '' })} className={`${theme.button} text-white px-3 py-1 rounded`}>+ Add Plot Point</button>
+          <div key={index} className={`p-4 border rounded ${entryTheme.card} ${entryTheme.shadow} hover:${entryTheme.animation} flex flex-col transition-all`}>
+
+            <input
+              type="text"
+              placeholder="Plot Title"
+              value={plot.title || ''}
+              onChange={(e) => updateField('plotPoints', index, 'title', e.target.value)}
+              className="mb-2 bg-transparent outline-none font-semibold"
+            />
+            <textarea
+              value={plot.description || ''}
+              onChange={(e) => updateField('plotPoints', index, 'description', e.target.value)}
+              className="bg-transparent outline-none w-full"
+              placeholder="Plot details..."
+            />
+
+            {/* Emotion dropdown */}
+            <select
+              value={plot.emotion || 'hopeful'}
+              onChange={(e) => updateField('plotPoints', index, 'emotion', e.target.value)}
+              className="mt-2 p-1 rounded bg-white text-sm w-max"
+            >
+              {Object.entries(emotions).map(([key, mood]) => (
+                <option key={key} value={key}>{mood.name}</option>
+              ))}
+            </select>
+
+            <div className="text-right mt-2">
+              <Trash2 onClick={() => deleteItem('plotPoints', index)} className="cursor-pointer inline-block" />
+            </div>
           </div>
         );
+      })}
+      <button
+        onClick={() => updateField('plotPoints', storyData.plotPoints.length, null, {
+          title: '',
+          description: '',
+          emotion: 'hopeful'
+        })}
+        className={`${theme.button} text-white px-3 py-1 rounded`}
+      >
+        + Add Plot Point
+      </button>
+    </div>
+  );
+
       case 'notes':
+  return (
+    <div className="space-y-4 mt-4">
+      {storyData.notes.map((note, index) => {
+        const entryTheme = emotions[note.emotion || 'hopeful'];
+
         return (
-          <div className="space-y-4 mt-4">
-            {storyData.notes.map((note, index) => (
-              <div key={index} className={`p-4 border rounded ${theme.card} flex flex-col`}>
-                <input
-                  type="text"
-                  placeholder="Note Title"
-                  value={note.title || ''}
-                  onChange={(e) => updateField('notes', index, 'title', e.target.value)}
-                  className="mb-2 bg-transparent outline-none font-semibold"
-                />
-                <textarea
-                  value={note.content || ''}
-                  onChange={(e) => updateField('notes', index, 'content', e.target.value)}
-                  className="bg-transparent outline-none w-full"
-                  placeholder="Note content..."
-                />
-                <div className="text-right mt-2">
-                  <Trash2 onClick={() => deleteItem('notes', index)} className="cursor-pointer inline-block" />
-                </div>
-              </div>
-            ))}
-            <button onClick={() => updateField('notes', storyData.notes.length, null, { title: '', content: '' })} className={`${theme.button} text-white px-3 py-1 rounded`}>+ Add Note</button>
+          <div key={index} className={`p-4 border rounded ${entryTheme.card} ${entryTheme.shadow} hover:${entryTheme.animation} flex flex-col transition-all`}>
+
+            <input
+              type="text"
+              placeholder="Note Title"
+              value={note.title || ''}
+              onChange={(e) => updateField('notes', index, 'title', e.target.value)}
+              className="mb-2 bg-transparent outline-none font-semibold"
+            />
+            <textarea
+              value={note.content || ''}
+              onChange={(e) => updateField('notes', index, 'content', e.target.value)}
+              className="bg-transparent outline-none w-full"
+              placeholder="Note content..."
+            />
+
+            {/* Emotion dropdown */}
+            <select
+              value={note.emotion || 'hopeful'}
+              onChange={(e) => updateField('notes', index, 'emotion', e.target.value)}
+              className="mt-2 p-1 rounded bg-white text-sm w-max"
+            >
+              {Object.entries(emotions).map(([key, mood]) => (
+                <option key={key} value={key}>{mood.name}</option>
+              ))}
+            </select>
+
+            <div className="text-right mt-2">
+              <Trash2 onClick={() => deleteItem('notes', index)} className="cursor-pointer inline-block" />
+            </div>
           </div>
         );
+      })}
+      <button
+        onClick={() => updateField('notes', storyData.notes.length, null, {
+          title: '',
+          content: '',
+          emotion: 'hopeful'
+        })}
+        className={`${theme.button} text-white px-3 py-1 rounded`}
+      >
+        + Add Note
+      </button>
+    </div>
+  );
+
       default:
         return null;
     }
