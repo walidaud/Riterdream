@@ -3,6 +3,18 @@ import { Plus, User, BookOpen, Palette, FileText, Save, PenTool, ChevronLeft, Ed
 
 const API_URL = process.env.REACT_APP_API_URL;
 
+const mapHuggingFaceEmotion = (label) => {
+  switch (label) {
+    case 'joy': return 'hopeful';
+    case 'anger': return 'rage';
+    case 'sadness': return 'melancholy';
+    case 'fear': return 'mystery';
+    case 'surprise': return 'wonder';
+    case 'disgust': return 'thrill';
+    default: return 'hopeful';
+  }
+};
+
 const Riterdream = () => {
   const [currentEmotion, setCurrentEmotion] = useState('hopeful');
   const [showMoodSelector, setShowMoodSelector] = useState(false);
@@ -38,12 +50,14 @@ const Riterdream = () => {
       body: JSON.stringify({ text })
     });
     const data = await res.json();
-    return data.emotion || 'hopeful';
+    const mapped = mapHuggingFaceEmotion(data.emotion);
+    return mapped;
   } catch (err) {
     console.error('Emotion detection failed', err);
     return 'hopeful';
   }
 };
+
 
   useEffect(() => {
     const style = document.createElement('style');
