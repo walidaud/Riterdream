@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, User, BookOpen, Palette, FileText, Save, PenTool, ChevronLeft, Edit, Trash2 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL;
@@ -16,6 +16,7 @@ const mapHuggingFaceEmotion = (label) => {
 };
 
 const Riterdream = () => {
+  const typingTimeout = useRef(null);
   const [currentEmotion, setCurrentEmotion] = useState('hopeful');
   const [showMoodSelector, setShowMoodSelector] = useState(false);
   const [activeTab, setActiveTab] = useState('chapters');
@@ -104,24 +105,29 @@ const Riterdream = () => {
     .catch(err => console.error('Error saving story:', err));
 };
 
-  const updateField = async (section, index, key, value) => {
+  const updateField = (section, index, key, value) => {
+  console.log('Detecting emotion for:', value); //remove after
+  clearTimeout(typingTimeout.current);
+  typingTimeout.current = setTimeout(async () => {
     const updated = { ...storyData };
-    const sectionData = [...updated[section]];
+    const sectionData = [...(updated[section] || [])];
     if (key) {
-  sectionData[index] = { ...sectionData[index], [key]: value };
-  if (key !== 'emotion') {
-    const emotion = await detectEmotion(value);
-    sectionData[index].emotion = emotion;
-  }
-} else {
-  sectionData[index] = value;
-  const combined = Object.values(value).join(' ');
-  const emotion = await detectEmotion(combined);
-  sectionData[index].emotion = emotion;
-}
+      sectionData[index] = { ...sectionData[index], [key]: value };
+      if (key !== 'emotion') {
+        const emotion = await detectEmotion(value);
+        sectionData[index].emotion = emotion;
+      }
+    } else {
+      sectionData[index] = value;
+      const combined = Object.values(value).join(' ');
+      const emotion = await detectEmotion(combined);
+      sectionData[index].emotion = emotion;
+    }
     updated[section] = sectionData;
     updateStories(updated);
-  };
+  }, 500);
+};
+
 
   const deleteItem = (section, index) => {
     const updated = { ...storyData };
